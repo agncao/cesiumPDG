@@ -21,3 +21,5 @@
 6. cesium教程6-设置面板 https://blog.csdn.net/qq_27118895/article/details/121473976
 
 7. cesium教程7-航迹模拟(无人机轨迹模拟飞行) https://blog.csdn.net/qq_27118895/article/details/121786796
+
+8. 更多property的用法  https://juejin.cn/post/7046569505119535111

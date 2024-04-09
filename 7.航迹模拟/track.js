@@ -29,9 +29,17 @@
     TrackPath(Lines) {
         var lins = [];
         this.dataSource = new Cesium.CustomDataSource('TrackPath');
-        for (let i = 0; i < Lines.length; i++) {
 
-            let LinesIndex = new Cesium.Cartesian3.fromDegrees(Lines[i].aircraftLongitude, Lines[i].aircraftLatitude, Lines[i].aircraftAltitude);
+        //通过循环添加多个点
+        for (let i = 0; i < Lines.length; i++) {
+            //从入参获取经纬度和海拔，并转化为笛卡尔坐标
+            let LinesIndex = new Cesium.Cartesian3
+            .fromDegrees(
+                Lines[i].aircraftLongitude, 
+                Lines[i].aircraftLatitude, 
+                Lines[i].aircraftAltitude
+            );
+            //添加点：红色，8个像素
             this.dataSource.entities.add({
                 position: LinesIndex,
                 point: {
@@ -39,11 +47,14 @@
                     color: Cesium.Color.RED
                 },
             });
+            //将经纬度和海拔展平添加到lins数组
             lins.push(Lines[i].aircraftLongitude);
             lins.push(Lines[i].aircraftLatitude);
             lins.push(Lines[i].aircraftAltitude);
 
         }
+
+        //生成航迹线：即通过一组点来生成折线
         this.dataSource.entities.add({
             polyline: {
                 positions: new Cesium.Cartesian3.fromDegreesArrayHeights(lins),
@@ -52,11 +63,21 @@
             }
         })
 
+        //将包含航迹的数据源添加到Cesium地图的视图中
         this.viewer.dataSources.add(this.dataSource);
+        //改变地图的观察视角到正视图，以便更好地观察绘制的航迹。
         this.ChangePerspective('ViewSide');
     }
+
+    //其目的是启动航迹模拟的飞行过程
     StartFlying() {
+        //this.Lines是一个包含飞行路径点信息的数组。ComputeRoamingLineProperty方法负责计算航迹的关键属性，如飞行路径、起始时间和停止时间。
+        //这个方法返回一个对象，其中包含了用于飞行模拟的属性（property）、飞行开始时间（startTime）和飞行结束时间（stopTime）
         this.property = this.ComputeRoamingLineProperty(this.Lines);
+        //InitRoaming方法负责初始化航迹模拟实体
+        //this.property.property：飞行路径属性，是一个SampledPositionProperty对象，表示飞行器在不同时间点的位置。
+        //this.property.startTime：飞行开始时间
+        //this.property.stopTime：飞行结束时间
         this.InitRoaming(this.property.property, this.property.startTime, this.property.stopTime);
     }
     /**
@@ -65,13 +86,14 @@
      * @memberof Track
      */
     ComputeRoamingLineProperty(Lines) {
-        this.onTickstate = true;
+        this.onTickstate = true;    //onTickstate设置为true，表示开始监听时间变化。
         let startTime = Cesium.JulianDate.fromDate(new Date());
         let stopTime;
         let property = new Cesium.SampledPositionProperty();
         let startWaiting, endWaiting;
         let Waiting = [];
         for (let i = 0, t = 0; i < Lines.length; i++) {
+            //计算每个点到下一个点的距离，并根据速度this.speed更新时间t，以模拟飞行时间
             if (i == 0) {
                 t = 0;
             } else {
@@ -81,9 +103,12 @@
 
                 t += d / this.speed;
             }
+
+            //添加循环当前点的位置，开始至现在的时间点到property
             let LinesIndex = new Cesium.Cartesian3.fromDegrees(Lines[i].aircraftLongitude, Lines[i].aircraftLatitude, Lines[i].aircraftAltitude);
             property.addSample(Cesium.JulianDate.addSeconds(startTime, t, new Cesium.JulianDate()), LinesIndex);
 
+            //如果当前点是拍摄点（isShoot == true），则在Waiting数组中添加该点的开始等待时间、结束等待时间和拍摄点。同时，增加等待时间t
             if (Lines[i].isShoot == true) {
                 startWaiting = Cesium.JulianDate.addSeconds(startTime, t, new Cesium.JulianDate())
                 t += this.stayTime || 1;
@@ -103,7 +128,7 @@
         }
 
         let k = true
-        this.viewer.clock.onTick.addEventListener((e) => {
+        this.viewer.clock.onTick.addEventListener((e) => {  //监听时间变化
             if (this.onTickstate) {
                 // console.log(e)
                 let finds = false
@@ -323,8 +348,10 @@
      * @memberof Track
      */
     ChangePerspective(name) {
-        if (name === "ViewTopDown") {
+        if (name === "ViewTopDown") {   //从正上方kan
+            //首先将this.viewer.trackedEntity设置为undefined，这意味着取消对任何实体的跟踪，使视图不会锁定在某个特定实体上。
             this.viewer.trackedEntity = undefined;
+            //眼睛在航迹正上方35高度处
             this.viewer.flyTo(
                 this.dataSource, {
                 offset: {
@@ -334,7 +361,7 @@
                 }
             }
             );
-        } else if (name === "ViewSide") {
+        } else if (name === "ViewSide") {   //从边上看：向西15度倾斜向下角
             this.viewer.trackedEntity = undefined;
             this.viewer.flyTo(
                 this.dataSource, {
@@ -345,7 +372,7 @@
                 }
             }
             );
-        } else if (name === "trackedEntity") {
+        } else if (name === "trackedEntity") {  //始终跟随着模型
             this.viewer.trackedEntity = this.entity;
         }
 
